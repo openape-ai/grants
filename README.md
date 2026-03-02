@@ -91,4 +91,4 @@ const authzToken = await issueAuthzJWT({
 
 ## License
 
-[MIT](./LICENSE)
+[AGPL-3.0-or-later](./LICENSE)
