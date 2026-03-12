@@ -1,4 +1,10 @@
-import type { GrantStatus, OpenApeGrant } from '@openape/core'
+import type { GrantStatus, OpenApeGrant, PaginatedResponse, PaginationParams } from '@openape/core'
+
+export interface GrantListParams extends PaginationParams {
+  status?: GrantStatus
+  requester?: string
+  role?: string
+}
 
 export interface GrantStore {
   save: (grant: OpenApeGrant) => Promise<void>
@@ -8,6 +14,7 @@ export interface GrantStore {
   findByRequester: (requester: string) => Promise<OpenApeGrant[]>
   findByDelegate?: (delegate: string) => Promise<OpenApeGrant[]>
   findByDelegator?: (delegator: string) => Promise<OpenApeGrant[]>
+  listGrants: (params?: GrantListParams) => Promise<PaginatedResponse<OpenApeGrant>>
 }
 
 export class InMemoryGrantStore implements GrantStore {
@@ -72,5 +79,41 @@ export class InMemoryGrantStore implements GrantStore {
       }
     }
     return results
+  }
+
+  async listGrants(params?: GrantListParams): Promise<PaginatedResponse<OpenApeGrant>> {
+    const limit = Math.min(Math.max(params?.limit ?? 20, 1), 100)
+    const cursor = params?.cursor
+
+    let grants = [...this.grants.values()]
+
+    // Filter
+    if (params?.status) {
+      grants = grants.filter(g => g.status === params.status)
+    }
+    if (params?.requester) {
+      grants = grants.filter(g => g.request.requester === params.requester)
+    }
+
+    // Sort by created_at DESC
+    grants.sort((a, b) => b.created_at - a.created_at)
+
+    // Apply cursor (skip grants until created_at < cursor)
+    if (cursor) {
+      const cursorTs = Number(cursor)
+      const idx = grants.findIndex(g => g.created_at < cursorTs)
+      grants = idx >= 0 ? grants.slice(idx) : []
+    }
+
+    const page = grants.slice(0, limit)
+    const hasMore = grants.length > limit
+
+    return {
+      data: page.map(g => ({ ...g })),
+      pagination: {
+        cursor: page.length > 0 ? String(page[page.length - 1]!.created_at) : null,
+        has_more: hasMore,
+      },
+    }
   }
 }

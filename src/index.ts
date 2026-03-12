@@ -13,4 +13,4 @@ export {
   useGrant,
   validateDelegation,
 } from './grants.js'
-export { type GrantStore, InMemoryGrantStore } from './stores.js'
+export { type GrantListParams, type GrantStore, InMemoryGrantStore } from './stores.js'
